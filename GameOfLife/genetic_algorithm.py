@@ -1,6 +1,7 @@
 import numpy as np
 import random
-from tqdm import tqdm 
+from tqdm import tqdm
+import csv
 
 
 def create_population(size, cellsX, cellsY):
@@ -61,12 +62,17 @@ def mutate(board, mutation_rate, cellsX, cellsY):
                 board[x, y] = 1 - board[x, y]  # Changes between 0 and 1
     return board
 
-def run_genetic_algorithm(cellsX, cellsY, population_size=50, num_generations=100, mutation_rate=0.1):
-    """Ejecuta el algoritmo genético y retorna el mejor tablero encontrado."""
+def run_genetic_algorithm(cellsX, cellsY, population_size=50, num_generations=100, mutation_rate=0.1, output_csv="evolution_data.csv"):
+    """ Run the best genetic algorithm and returns the best board """
     population = create_population(population_size, cellsX, cellsY)
+
+    with open(output_csv, mode='w') as file:
+        pass
+
 
     for generation in tqdm(range(num_generations), desc="Simulando generaciones", unit="gen"):
         fitness_scores = [calculate_fitness(individual, cellsX, cellsY) for individual in population]
+        save_generation_data(output_csv, generation, population, fitness_scores)
         new_population = []
 
         for _ in range(population_size // 2):
@@ -82,3 +88,39 @@ def run_genetic_algorithm(cellsX, cellsY, population_size=50, num_generations=10
 
     best_individual = max(population, key=lambda board: calculate_fitness(board, cellsX, cellsY))
     return best_individual
+
+
+
+""" CSV """
+
+def save_generation_data(filename, generation, population, fitness_scores):
+    """ Save the data of each generation in a csv """
+    with open(filename, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        
+        if generation == 0:
+            headers = ['Generation', 'Individual', 'Fitness', 'Density', 'Avg_Neighbors']
+            writer.writerow(headers)
+
+        for i, (board, fitness) in enumerate(zip(population, fitness_scores)):
+            
+            density = np.sum(board) / (board.shape[0] * board.shape[1])
+            avg_neighbors = calculate_avg_neighbors(board)
+            writer.writerow([generation, i, fitness, density, avg_neighbors])
+
+def calculate_avg_neighbors(board):
+    
+    cellsX, cellsY = board.shape
+    total_neighbors = 0
+    for y in range(cellsY):
+        for x in range(cellsX):
+            num_neigh = (board[(x-1) % cellsX, (y-1) % cellsY] +
+                         board[(x) % cellsX, (y-1) % cellsY] +
+                         board[(x+1) % cellsX, (y-1) % cellsY] +
+                         board[(x-1) % cellsX, (y) % cellsY] +
+                         board[(x+1) % cellsX, (y) % cellsY] +
+                         board[(x-1) % cellsX, (y+1) % cellsY] +
+                         board[(x) % cellsX, (y+1) % cellsY] +
+                         board[(x+1) % cellsX, (y+1) % cellsY])
+            total_neighbors += num_neigh
+    return total_neighbors / (cellsX * cellsY)
