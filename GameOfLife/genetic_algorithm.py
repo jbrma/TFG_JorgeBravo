@@ -9,85 +9,40 @@ def create_population(size, cellsX, cellsY):
     return [np.random.randint(2, size=(cellsX, cellsY)) for _ in range(size)]
 
 
-def calculate_fitness(board, cellsX, cellsY):
-    """Calculate the fitness function of the board simulating some generations """
+def calculate_fitness_cell(board, x, y):
+    """Calculate the fitness for a single cell based on its neighborhood"""
+    cellsX, cellsY = board.shape
+    num_neigh = (
+        board[(x-1) % cellsX, (y-1) % cellsY] +
+        board[(x) % cellsX, (y-1) % cellsY] +
+        board[(x+1) % cellsX, (y-1) % cellsY] +
+        board[(x-1) % cellsX, (y) % cellsY] +
+        board[(x+1) % cellsX, (y) % cellsY] +
+        board[(x-1) % cellsX, (y+1) % cellsY] +
+        board[(x) % cellsX, (y+1) % cellsY] +
+        board[(x+1) % cellsX, (y+1) % cellsY]
+    )
 
-    generations = 10  # number of iterations
-    gameState = np.copy(board)
-    fitness = 0
+    if board[x, y] == 1:
+        return 2 <= num_neigh <= 3  # Survives if 2-3 neighbors
+    elif board[x, y] == 0:
+        return num_neigh == 3  # Born if exactly 3 neighbors
+    return 0
 
-    for _ in range(generations):
-        newGameState = np.copy(gameState)
-        for y in range(cellsY):
-            for x in range(cellsX):
-                num_neigh = (gameState[(x-1) % cellsX, (y-1) % cellsY] +
-                             gameState[(x) % cellsX, (y-1) % cellsY] +
-                             gameState[(x+1) % cellsX, (y-1) % cellsY] +
-                             gameState[(x-1) % cellsX, (y) % cellsY] +
-                             gameState[(x+1) % cellsX, (y) % cellsY] +
-                             gameState[(x-1) % cellsX, (y+1) % cellsY] +
-                             gameState[(x) % cellsX, (y+1) % cellsY] +
-                             gameState[(x+1) % cellsX, (y+1) % cellsY])
-
-                if gameState[x, y] == 0 and num_neigh == 3:
-                    newGameState[x, y] = 1
-                elif gameState[x, y] == 1 and (num_neigh < 2 or num_neigh > 3):
-                    newGameState[x, y] = 0
-
-        fitness += np.sum(newGameState)  # Its the living cell quantity 
-        gameState = newGameState
-
-    return fitness
+def select_mate(neighborhood, fitness_scores):
+    """Select a mate for a cell based on fitness scores within its neighborhood"""
+    candidates = [(i, j) for i, row in enumerate(neighborhood) for j, _ in enumerate(row)]
+    candidates_fitness = [fitness_scores[i, j] for i, j in candidates]
+    best_index = np.argmax(candidates_fitness)
+    return candidates[best_index]
 
 
-def select_parents(population, fitness_scores):
-    """ Select the best individuals to proceed into the next generation """
-    subgroup = 5
-    selected = random.sample(list(zip(population, fitness_scores)), subgroup)
-    selected.sort(key=lambda x: x[1], reverse=True)
-    return selected[0][0]  # Returns the best ones
-
-
-def crossover(parent1, parent2, cellsX):
-    """ Crossover between two parents """
-    point = random.randint(1, cellsX - 1)
-    child = np.vstack((parent1[:point], parent2[point:]))
-    return child
-
-def mutate(board, mutation_rate, cellsX, cellsY):
-    """ Aplies mutations into the board (child) """
-    for x in range(cellsX):
-        for y in range(cellsY):
-            if random.random() < mutation_rate:
-                board[x, y] = 1 - board[x, y]  # Changes between 0 and 1
-    return board
-
-def run_genetic_algorithm(cellsX, cellsY, population_size=50, num_generations=100, mutation_rate=0.1, output_csv="evolution_data.csv"):
-    """ Run the best genetic algorithm and returns the best board """
-    population = create_population(population_size, cellsX, cellsY)
-
-    with open(output_csv, mode='w') as file:
-        pass
-
-
-    for generation in tqdm(range(num_generations), desc="Simulando generaciones", unit="gen"):
-        fitness_scores = [calculate_fitness(individual, cellsX, cellsY) for individual in population]
-        save_generation_data(output_csv, generation, population, fitness_scores)
-        new_population = []
-
-        for _ in range(population_size // 2):
-            parent1 = select_parents(population, fitness_scores)
-            parent2 = select_parents(population, fitness_scores)
-            child1 = crossover(parent1, parent2, cellsX)
-            child2 = crossover(parent2, parent1, cellsX)
-            child1 = mutate(child1, mutation_rate, cellsX, cellsY)
-            child2 = mutate(child2, mutation_rate, cellsX, cellsY)
-            new_population.extend([child1, child2])
-
-        population = new_population
-
-    best_individual = max(population, key=lambda board: calculate_fitness(board, cellsX, cellsY))
-    return best_individual
+def crossover_and_mutate(cell, mate, mutation_rate):
+    """Perform crossover and mutation for a cell"""
+    new_state = cell if random.random() > 0.5 else mate
+    if random.random() < mutation_rate:
+        new_state = 1 - new_state  # Flip the state
+    return new_state
 
 
 
