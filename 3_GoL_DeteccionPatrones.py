@@ -323,7 +323,7 @@ for generation in range(NUM_EVOLUTIONS):
     population = new_population
 
 
-class InteractiveSimulation:
+class Simulation:
     def __init__(self, best_individual, max_generations):
         self.fig = plt.figure(figsize=(10, 8))
         self.max_generations = max_generations
@@ -434,5 +434,5 @@ class InteractiveSimulation:
         )
         plt.show()
 
-sim = InteractiveSimulation(best_individual, MAX_GENERATIONS)
+sim = Simulation(best_individual, MAX_GENERATIONS)
 sim.start()

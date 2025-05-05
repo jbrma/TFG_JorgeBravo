@@ -140,7 +140,7 @@ for generation in range(NUM_EVOLUTIONS):
 
     population = new_population
 
-class InteractiveSimulation:
+class Simulation:
     def __init__(self, best_individual):
         self.fig = plt.figure(figsize=(10, 6))
         
@@ -213,7 +213,7 @@ class InteractiveSimulation:
         plt.show()
 
 # Iniciar la simulación con el mejor individuo
-sim = InteractiveSimulation(best_individual)
+sim = Simulation(best_individual)
 sim.start()
 
 
