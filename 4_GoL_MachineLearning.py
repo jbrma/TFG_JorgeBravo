@@ -13,19 +13,18 @@ import tkinter as tk
 from tkinter import ttk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import random
-import threading
 import sys
 import os
 
 
 # ====== CONFIGURACIÓN ======
 
-GRID_SIZE = 50
-MAX_GENERATIONS = 20
+GRID_SIZE = 30
+MAX_GENERATIONS = 100
 POPULATION_SIZE = 30
 CHROMOSOME_SIZE = GRID_SIZE * GRID_SIZE
-MUTATION_RATE = 0.01
-NUM_EVOLUTIONS = 2
+MUTATION_RATE = 0.05
+NUM_EVOLUTIONS = 10
 
 # ====== PATRONES CONOCIDOS ======
 
@@ -151,15 +150,15 @@ def fitness(individual):
 
     detected = detect_known_patterns(grid)
     if "glider_gun" in detected:
-        score += 500
+        score += 1000
     if "glider" in detected:
-        score += 100
+        score += 500
     if "beehive" in detected:
-        score += 60
+        score += 200
     if "blinker" in detected:
-        score += 20
+        score -= 30
     if "block" in detected:
-        score += 20
+        score -= 30
 
     return score
 
@@ -314,8 +313,6 @@ class LifeGAApp:
         # Predicción con ML
         features = extract_features(grid).reshape(1, -1)
         predictions = predict_pattern(grid, self.model, self.label_mapping, threshold=0.2)
-        main_pred = max(predictions, key=predictions.get)
-        confidence = predictions[main_pred]
 
         # Actualizar labels
         self.lbl_cells.config(text=f"Células vivas: {alive}")
@@ -404,6 +401,10 @@ class LifeGAApp:
         ax.plot(avg, label="Promedio", linewidth=2.5, color='blue')
         ax.plot(max_, label="Máximo", linewidth=2.5, color='green', linestyle='--')
 
+        if max_:
+            y_max = max(max_) * 1.1  # 10% de margen
+            ax.set_ylim(0, y_max)
+
         ax.set_title("Evolución del Fitness", fontsize=14, pad=20)
         ax.set_xlabel("Generación", fontsize=12)
         ax.set_ylabel("Fitness", fontsize=12)
@@ -436,8 +437,6 @@ class LifeGAApp:
 # ====== MODULO ML =======
 
 import numpy as np
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
 from scipy.ndimage import label
 
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
@@ -446,7 +445,6 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout
-from tensorflow.keras.utils import to_categorical
 
 
 # ====== Feature extraction ======
@@ -530,27 +528,27 @@ def train_model(X, y_binary):
     # Modelo de red neuronal
     model = Sequential([
         tf.keras.layers.Input(shape=(X.shape[1],)),
-        Dense(128, activation='relu'),
+        Dense(256, activation='relu'),
         Dropout(0.4),
-        Dense(64, activation='relu'),
+        Dense(128, activation='relu'),
         Dropout(0.3),
         Dense(y_binary.shape[1], activation='sigmoid')
     ])
     
     model.compile(
-        optimizer='adam',
+        optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001),
         loss='binary_crossentropy',
         metrics=['accuracy']
     )
 
-    history = model.fit(
+    model.fit(
         X, y_binary,
-        epochs=50,
+        epochs=200,
         batch_size=32,
-        validation_split=0.3,
-        verbose=0
+        validation_split=0.2,
+        verbose=1
     )
-    
+
     return model
 
 
@@ -559,7 +557,7 @@ def train_model(X, y_binary):
 X, y_binary, label_mapping = build_dataset(population_history)
 
 label_counts = {label: np.sum(y_binary[:, idx]) for label, idx in label_mapping.items()}
-print("Conteo de etiquetas:", label_counts)
+print("Conteo de patrones:", label_counts)
 
 model = train_model(X, y_binary)
 

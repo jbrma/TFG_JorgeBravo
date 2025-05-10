@@ -7,7 +7,7 @@ pygame.init()
 width, height = 800, 800
 screen = pygame.display.set_mode((height, width))
 
-color_bg = 25, 25, 25 # background
+color_bg = 20, 30, 50 # background
 
 screen.fill(color_bg)
 
@@ -153,7 +153,7 @@ while running:
                 elif gameState[x, y] == 1 and (num_neigh < 2 or num_neigh > 3):
                     newGameState[x, y] = 0
 
-
+            """
             # Círculo
             center_x = (x + 0.5) * dimCW
             center_y = (y + 0.5) * dimCH
@@ -163,17 +163,18 @@ while running:
                 pygame.draw.circle(screen, (24, 24, 24), (int(center_x), int(center_y)), int(radius), width=1)
             else:
                 pygame.draw.circle(screen, (255, 255, 255), (int(center_x), int(center_y)), int(radius), width=0)
+            """
 
             # Cuadrado 
-            """ poly = [(x * dimCW, y * dimCH),
+            poly = [(x * dimCW, y * dimCH),
                     ((x+1) * dimCW, y * dimCH),
                     ((x+1) * dimCW, (y+1) * dimCH),
                     (x * dimCW, (y+1) * dimCH)]
             
             if newGameState[x,y] == 0:
-                pygame.draw.polygon(screen, (128, 128, 128), poly, width=1)
+                pygame.draw.polygon(screen, (20, 30, 50), poly, width=1)
             else:
-                pygame.draw.polygon(screen, (128, 128, 128), poly, width=0) """
+                pygame.draw.polygon(screen, (240, 240, 240), poly, width=0) 
 
     gameState = np.copy(newGameState)
 
