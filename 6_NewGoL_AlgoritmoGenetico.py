@@ -3,22 +3,22 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib.widgets import Button
 from collections import Counter
+import random
 
 # Parámetros del universo
-SIZE = 200
-PROB_MASS_LOSS = 0.15      # 15% de probabilidad de perder masa por paso (agujero negro)
-MASS_LOSS_RATE = 0.12      # 12% de masa perdida en cada evento (agujero negro)
+SIZE = 50
+PROB_MASS_LOSS = 0.15
+MASS_LOSS_RATE = 0.12
+
+POP_SIZE = 10 # Poblacion
+SIM_STEPS = 20 # Numero de pasos para evaluar cada universo
+MUTATION_RATE = 0.01
+GEN_STEPS = 20  # Numero de generaciones para el algoritmo genético
 
 # Tipos de celda
-SPACE = 0
-STAR = 1
-PLANET = 2
-ASTEROID = 3
-ENERGY = 4
-BLACK_HOLE = 5
-ANTIMATTER = 6
+SPACE, STAR, PLANET, ASTEROID, ENERGY, BLACK_HOLE, ANTIMATTER = 0, 1, 2, 3, 4, 5, 6
 
-# Colores para visualización
+# Configuración de colores
 COLORS = {
     SPACE: (0, 0, 0),
     STAR: (1, 1, 0),
@@ -29,7 +29,6 @@ COLORS = {
     ANTIMATTER: (0.3, 0.7, 1)
 }
 
-# Masas relativas para cada tipo
 MASSES = {
     SPACE: 0,
     STAR: 10,
@@ -42,24 +41,19 @@ MASSES = {
 
 # Inicialización aleatoria
 def create_universe():
-    # Inicializa el universo con una distribución aleatoria de celdas
     return np.random.choice(
         [SPACE, STAR, PLANET, ASTEROID, ENERGY, BLACK_HOLE, ANTIMATTER],
         size=(SIZE, SIZE),
         p=[0.77, 0.03, 0.07, 0.07, 0.05, 0.002, 0.008]
     )
 
-# Inicializa la matriz de masas
 def initialize_masses(grid):
-    # Asigna la masa inicial según el tipo de celda
     masses = np.zeros_like(grid, dtype=float)
     for t, v in MASSES.items():
         masses[grid == t] = v
     return masses
 
-# Calcula la gravedad local simplificada
 def local_gravity(grid, x, y):
-    # Calcula la fuerza gravitatoria local en la celda (x, y)
     radius = 2
     fx, fy = 0.0, 0.0
     for i in range(max(0, x-radius), min(SIZE, x+radius+1)):
@@ -74,9 +68,7 @@ def local_gravity(grid, x, y):
             fy += f * dy / dist
     return fx, fy
 
-# Actualiza el universo según las reglas
 def update_universe(grid, masses):
-    # Aplica las reglas de evolución para cada celda
     new_grid = grid.copy()
     new_masses = masses.copy()
     for x in range(SIZE):
@@ -86,13 +78,11 @@ def update_universe(grid, masses):
             neighbors = grid[max(0, x-1):x+2, max(0, y-1):y+2]
             neighbor_masses = masses[max(0, x-1):x+2, max(0, y-1):y+2]
             
-            # Fusión de estructuras del mismo tipo
             same_type = (neighbors == cell)
             if cell != SPACE and np.sum(same_type) > 1:
                 total_mass = np.sum(neighbor_masses[same_type])
                 new_masses[x, y] = total_mass
 
-            # Aniquilación materia-antimateria
             if cell != SPACE and ANTIMATTER in neighbors:
                 new_grid[x, y] = ENERGY
                 new_masses[x, y] = MASSES[ENERGY]
@@ -102,43 +92,33 @@ def update_universe(grid, masses):
                 new_masses[x, y] = MASSES[ENERGY]
                 continue
 
-            # Reglas para cada tipo
             if cell == SPACE:
-                # Energía puede formar asteroides
                 if np.count_nonzero(neighbors == ENERGY) >= 3 and np.random.rand() < 0.02:
                     new_grid[x, y] = ASTEROID
                     new_masses[x, y] = MASSES[ASTEROID]
-                # Formación de asteroides por energía y otros asteroides
                 if np.count_nonzero(neighbors == ENERGY) >= 2 and np.count_nonzero(neighbors == ASTEROID) >= 2 and np.random.rand() < 0.01:
                     new_grid[x, y] = ASTEROID
                     new_masses[x, y] = MASSES[ASTEROID]
-                # Formación de planeta a partir de asteroides
                 if np.count_nonzero(neighbors == ASTEROID) >= 4 and np.random.rand() < 0.01:
                     new_grid[x, y] = PLANET
                     new_masses[x, y] = MASSES[PLANET]
-                # Formación de estrella a partir de planetas
                 if np.count_nonzero(neighbors == PLANET) >= 4 and np.random.rand() < 0.01:
                     new_grid[x, y] = STAR
                     new_masses[x, y] = MASSES[STAR]
-                # Formación de agujero negro por colapso estelar
                 if np.count_nonzero(neighbors == STAR) >= 5 and np.random.rand() < 0.005:
                     new_grid[x, y] = BLACK_HOLE
                     new_masses[x, y] = MASSES[BLACK_HOLE]
-                # Emisión de energía por estrellas
                 if np.count_nonzero(neighbors == STAR) >= 2 and np.random.rand() < 0.01:
                     new_grid[x, y] = ENERGY
                     new_masses[x, y] = MASSES[ENERGY]
-                # Colisión de agujeros negros
                 if np.count_nonzero(neighbors == BLACK_HOLE) >= 2 and np.random.rand() < 0.01:
                     new_grid[x, y] = BLACK_HOLE
                     new_masses[x, y] = MASSES[BLACK_HOLE]
 
             elif cell == STAR:
-                # Colapso a agujero negro si la masa es grande
                 if mass > 25 and np.random.rand() < 0.01:
                     new_grid[x, y] = BLACK_HOLE
                     new_masses[x, y] = MASSES[BLACK_HOLE]
-                # Las estrellas emiten energía
                 if np.random.rand() < 0.02:
                     for i in range(max(0, x-1), min(SIZE, x+2)):
                         for j in range(max(0, y-1), min(SIZE, y+2)):
@@ -147,45 +127,37 @@ def update_universe(grid, masses):
                                 new_masses[i, j] = MASSES[ENERGY]
 
             elif cell == PLANET:
-                # El planeta puede convertirse en estrella si la masa es grande
                 if mass > 10 and np.random.rand() < 0.01:
                     new_grid[x, y] = STAR
                     new_masses[x, y] = MASSES[STAR]
-                # El planeta puede fragmentarse en asteroides
                 if np.random.rand() < 0.001:
                     new_grid[x, y] = ASTEROID
                     new_masses[x, y] = MASSES[ASTEROID]
 
             elif cell == ASTEROID:
-                # El asteroide se dispersa
                 if np.random.rand() < 0.002:
                     new_grid[x, y] = SPACE
                     new_masses[x, y] = 0
 
             elif cell == ENERGY:
-                # La energía puede formar asteroides
                 if np.count_nonzero(neighbors == ENERGY) >= 3 and np.random.rand() < 0.01:
                     new_grid[x, y] = ASTEROID
                     new_masses[x, y] = MASSES[ASTEROID]
-                # La energía se disipa
                 if np.random.rand() < 0.01:
                     new_grid[x, y] = SPACE
                     new_masses[x, y] = 0
 
             elif cell == BLACK_HOLE:
-                # Pérdida de masa gradual
                 if np.random.rand() < PROB_MASS_LOSS:
                     mass_lost = mass * MASS_LOSS_RATE
                     new_masses[x, y] -= mass_lost
 
-                # El agujero negro absorbe objetos cercanos
                 for i in range(max(0, x-1), min(SIZE, x+2)):
                     for j in range(max(0, y-1), min(SIZE, y+2)):
                         if (i != x or j != y) and grid[i, j] not in [SPACE, BLACK_HOLE]:
                             if np.random.rand() < 0.5:
                                 new_grid[i, j] = SPACE
                                 new_masses[i, j] = 0
-                # El agujero negro puede emitir energía (radiación Hawking)
                 if np.random.rand() < 0.001:
                     for i in range(max(0, x-1), min(SIZE, x+2)):
                         for j in range(max(0, y-1), min(SIZE, y+2)):
@@ -193,9 +165,7 @@ def update_universe(grid, masses):
                                 new_grid[i, j] = ENERGY
                                 new_masses[i, j] = MASSES[ENERGY]
 
-                # Desintegración final
                 if new_masses[x, y] < 1:
-                    # Liberar energía residual
                     remaining_energy = new_masses[x, y]
                     energy_per_cell = remaining_energy / 8
                     for dx in [-1, 0, 1]:
@@ -215,84 +185,152 @@ def update_universe(grid, masses):
 
     return new_grid, new_masses
 
-# Renderiza el universo
 def render(grid):
-    # Convierte el grid en una imagen RGB
     img = np.zeros((SIZE, SIZE, 3))
     for t, color in COLORS.items():
         img[grid == t] = color
     return img
 
-# Cuenta los tipos de celda
 def count_cells(grid):
-    # Devuelve un diccionario con el conteo de cada tipo de celda
     counts = Counter(grid.flatten())
     return [counts.get(t, 0) for t in range(7)]
 
+# =============== ALGORITMO GENÉTICO ====================
 
-# --- Interfaz gráfica y animación ---
+def fitness(final_grid, final_masses):
+    total_mass = np.sum(final_masses)
+    stars = np.sum(final_grid == STAR)
+    planets = np.sum(final_grid == PLANET)
+    #black_holes = np.sum(final_grid == BLACK_HOLE)
+    return total_mass + 10 * (stars + planets)
 
-fig = plt.figure(figsize=(8, 8))
-plt.subplots_adjust(left=0.1, right=0.9, top=0.95, bottom=0.15)
+def evolve_population(population):
+    best_universe = None
+    best_score = -np.inf
+    current_step = 0
+    
+    for _ in range(GEN_STEPS):
+        scores = []
+        evolved_pop = []
+        
+        
+        for universe in population:
+            # Simular universo
+            current_grid = universe.copy()
+            current_mass = initialize_masses(current_grid)
+            for _ in range(SIM_STEPS):
+                current_grid, current_mass = update_universe(current_grid, current_mass)
+            
+            # Evaluar fitness
+            score = fitness(current_grid, current_mass)
+            scores.append(score)
+            
+            if score > best_score:
+                best_score = score
+                best_universe = current_grid.copy()
 
-# Crear subplots
-ax_title = plt.subplot2grid((12, 1), (0, 0), rowspan=1)
-ax_grid = plt.subplot2grid((12, 1), (1, 0), rowspan=8)
-ax_stats = plt.subplot2grid((12, 1), (9, 0), rowspan=3)
+        print(f"Gen {current_step} -> Mejor fitness: {best_score}, Promedio: {np.mean(scores)}")
+        current_step += 1
+        best_score = 0
+        
+        # Selección y reproducción
+        sorted_indices = np.argsort(scores)[::-1]
+        selected = [population[i] for i in sorted_indices[:POP_SIZE//2]]
+        
+        new_pop = []
+        while len(new_pop) < POP_SIZE:
+            p1, p2 = random.sample(selected, 2)
+            child = crossover(p1, p2)
+            child = mutate(child)
+            new_pop.append(child)
+        
+        population = new_pop
+    
+    return best_universe, best_score
 
-ax_title.axis('off')
-ax_grid.axis('off')
-ax_stats.axis('off')
+def crossover(parent1, parent2):
+    crossover_point = np.random.randint(1, SIZE-1)
+    child = np.vstack((parent1[:crossover_point], parent2[crossover_point:]))
+    return child
 
-# Inicialización del universo
-grid = create_universe()
-masses = initialize_masses(grid)
-frame = [0] 
+def mutate(universe):
+    mutation_mask = np.random.rand(SIZE, SIZE) < MUTATION_RATE
+    random_values = np.random.randint(0, 7, size=(SIZE, SIZE))
+    mutated = np.where(mutation_mask, random_values, universe)
+    return mutated
 
-# Elementos gráficos
-img = ax_grid.imshow(render(grid), interpolation='nearest')
-title_text = ax_title.text(0.5, 0.5, f'Generación: {frame[0]}', 
-                          fontsize=16, ha='center', va='center', 
-                          transform=ax_title.transAxes)
+# ========== Interfaz gráfica y animación ========
 
-cell_types = ["Espacio (negro)", "Estrella (amarillo)", "Planeta (verde)", "Asteroide (azul)", 
-             "Energía (rojo)", "Agujero Negro (azul oscuro)", "Antimateria"]
-counts = count_cells(grid)
-stats_text = "\n".join([f"{name}: {count}" for name, count in zip(cell_types, counts)])
+class UniverseSimulator:
+    def __init__(self):
+        self.fig = plt.figure(figsize=(8, 6))
+        self.gridspec = plt.GridSpec(2, 2, width_ratios=[1, 1], height_ratios=[3, 1])
+        
+        # Panel izquierdo: Mejor universo evolucionado
+        self.ax_best = self.fig.add_subplot(self.gridspec[0, 0])
+        self.ax_best.set_title("Mejor Universo Inicial")
+        self.ax_best.axis('off')
+        
+        # Panel derecho: Simulación en vivo
+        self.ax_sim = self.fig.add_subplot(self.gridspec[0, 1])
+        self.ax_sim.set_title("Simulación")
+        self.ax_sim.axis('off')
+        
+        # Panel inferior: Estadísticas
+        self.ax_stats = self.fig.add_subplot(self.gridspec[1, :])
+        self.ax_stats.axis('off')
+        
+        # Evolucionar población inicial
+        initial_pop = [create_universe() for _ in range(POP_SIZE)]
+        self.best_universe, score = evolve_population(initial_pop)
+        print(f"\nMejor fitness obtenido: {score}")
+        
+        # Inicializar simulación
+        self.grid = self.best_universe.copy()
+        self.masses = initialize_masses(self.grid)
+        self.frame = [0]
+        self.paused = True
+        
+        # Elementos gráficos
+        self.img_best = self.ax_best.imshow(render(self.best_universe), interpolation='nearest')
+        self.img_sim = self.ax_sim.imshow(render(self.grid), interpolation='nearest')
+        
+        # Estadísticas
+        self.stats_text = self.ax_stats.text(0.5, 0.5, "", ha='center', va='center')
+        
+        # Botones
+        self.btn_ax = plt.axes([0.45, 0.05, 0.1, 0.04])
+        self.btn = Button(self.btn_ax, 'Iniciar', color='lightgoldenrodyellow')
+        self.btn.on_clicked(self.toggle_sim)
+        
+        plt.subplots_adjust(left=0.05, right=0.95, top=0.9, bottom=0.15)
+    
+    def toggle_sim(self, event):
+        self.paused = not self.paused
+        self.btn.label.set_text('Pausar' if not self.paused else 'Reanudar')
+    
+    def update_stats(self):
+        counts = count_cells(self.grid)
+        stats = (
+            f"Generación: {self.frame[0]} | "
+            f"Estrellas: {counts[STAR]} | "
+            f"Planetas: {counts[PLANET]} | "
+            f"Agujeros Negros: {counts[BLACK_HOLE]}"
+        )
+        self.stats_text.set_text(stats)
+    
+    def update_frame(self, i):
+        if not self.paused:
+            self.grid, self.masses = update_universe(self.grid, self.masses)
+            self.img_sim.set_data(render(self.grid))
+            self.frame[0] += 1
+            self.update_stats()
+        return self.img_sim, self.stats_text
+    
+    def start(self):
+        anim = animation.FuncAnimation(self.fig, self.update_frame, interval=100, blit=False)
+        plt.show()
 
-count_text = ax_stats.text(0.05, 0.7, stats_text, 
-                          fontsize=12, va='top', 
-                          transform=ax_stats.transAxes)
-
-btn_ax = plt.axes([0.8, 0.05, 0.15, 0.04])
-btn_play = Button(btn_ax, 'Pausar', color='lightgoldenrodyellow')
-
-paused = [True]
-history = []
-
-def update_display():
-    img.set_data(render(grid))
-    counts = count_cells(grid)
-    count_text.set_text("\n".join([f"{name}: {count}" for name, count in zip(cell_types, counts)]))
-    title_text.set_text(f'Generación: {frame[0]}')
-    fig.canvas.draw_idle()
-
-def animate(i):
-    if not paused[0]:
-        new_grid, new_masses = update_universe(grid, masses)
-        grid[:] = new_grid
-        masses[:] = new_masses
-        frame[0] += 1
-        update_display()
-    return img, count_text
-
-def toggle_play(event):
-    paused[0] = not paused[0]
-    btn_play.label.set_text('Reanudar' if paused[0] else 'Pausar')
-
-btn_play.on_clicked(toggle_play)
-
-# Inicializar animación
-ani = animation.FuncAnimation(fig, animate, interval=100, blit=False)
-
-plt.show()
+# Iniciar simulación
+sim = UniverseSimulator()
+sim.start()
