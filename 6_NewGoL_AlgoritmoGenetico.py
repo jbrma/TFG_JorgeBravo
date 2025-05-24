@@ -211,8 +211,6 @@ def evolve_population(population):
     
     for _ in range(GEN_STEPS):
         scores = []
-        evolved_pop = []
-        
         
         for universe in population:
             # Simular universo

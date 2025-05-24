@@ -2,12 +2,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib.widgets import Button
-from collections import Counter
+from scipy.ndimage import label
+from sklearn.cluster import KMeans
+from tensorflow.keras import layers, Model, backend as K
 
 # Parámetros del universo
 SIZE = 200
-PROB_MASS_LOSS = 0.15      # 15% de probabilidad de perder masa por paso (agujero negro)
-MASS_LOSS_RATE = 0.12      # 12% de masa perdida en cada evento (agujero negro)
+PROB_MASS_LOSS = 0.15
+MASS_LOSS_RATE = 0.12
 
 # Tipos de celda
 SPACE = 0
@@ -36,30 +38,25 @@ MASSES = {
     PLANET: 4,
     ASTEROID: 1,
     ENERGY: 0.5,
-    BLACK_HOLE: 30,
+    BLACK_HOLE: 50,
     ANTIMATTER: 4
 }
 
 # Inicialización aleatoria
 def create_universe():
-    # Inicializa el universo con una distribución aleatoria de celdas
     return np.random.choice(
         [SPACE, STAR, PLANET, ASTEROID, ENERGY, BLACK_HOLE, ANTIMATTER],
         size=(SIZE, SIZE),
         p=[0.77, 0.03, 0.07, 0.07, 0.05, 0.002, 0.008]
     )
 
-# Inicializa la matriz de masas
 def initialize_masses(grid):
-    # Asigna la masa inicial según el tipo de celda
     masses = np.zeros_like(grid, dtype=float)
     for t, v in MASSES.items():
         masses[grid == t] = v
     return masses
 
-# Calcula la gravedad local simplificada
 def local_gravity(grid, x, y):
-    # Calcula la fuerza gravitatoria local en la celda (x, y)
     radius = 2
     fx, fy = 0.0, 0.0
     for i in range(max(0, x-radius), min(SIZE, x+radius+1)):
@@ -74,9 +71,7 @@ def local_gravity(grid, x, y):
             fy += f * dy / dist
     return fx, fy
 
-# Actualiza el universo según las reglas
 def update_universe(grid, masses):
-    # Aplica las reglas de evolución para cada celda
     new_grid = grid.copy()
     new_masses = masses.copy()
     for x in range(SIZE):
@@ -86,13 +81,11 @@ def update_universe(grid, masses):
             neighbors = grid[max(0, x-1):x+2, max(0, y-1):y+2]
             neighbor_masses = masses[max(0, x-1):x+2, max(0, y-1):y+2]
             
-            # Fusión de estructuras del mismo tipo
             same_type = (neighbors == cell)
             if cell != SPACE and np.sum(same_type) > 1:
                 total_mass = np.sum(neighbor_masses[same_type])
                 new_masses[x, y] = total_mass
 
-            # Aniquilación materia-antimateria
             if cell != SPACE and ANTIMATTER in neighbors:
                 new_grid[x, y] = ENERGY
                 new_masses[x, y] = MASSES[ENERGY]
@@ -102,43 +95,33 @@ def update_universe(grid, masses):
                 new_masses[x, y] = MASSES[ENERGY]
                 continue
 
-            # Reglas para cada tipo
             if cell == SPACE:
-                # Energía puede formar asteroides
                 if np.count_nonzero(neighbors == ENERGY) >= 3 and np.random.rand() < 0.02:
                     new_grid[x, y] = ASTEROID
                     new_masses[x, y] = MASSES[ASTEROID]
-                # Formación de asteroides por energía y otros asteroides
                 if np.count_nonzero(neighbors == ENERGY) >= 2 and np.count_nonzero(neighbors == ASTEROID) >= 2 and np.random.rand() < 0.01:
                     new_grid[x, y] = ASTEROID
                     new_masses[x, y] = MASSES[ASTEROID]
-                # Formación de planeta a partir de asteroides
                 if np.count_nonzero(neighbors == ASTEROID) >= 4 and np.random.rand() < 0.01:
                     new_grid[x, y] = PLANET
                     new_masses[x, y] = MASSES[PLANET]
-                # Formación de estrella a partir de planetas
                 if np.count_nonzero(neighbors == PLANET) >= 4 and np.random.rand() < 0.01:
                     new_grid[x, y] = STAR
                     new_masses[x, y] = MASSES[STAR]
-                # Formación de agujero negro por colapso estelar
                 if np.count_nonzero(neighbors == STAR) >= 5 and np.random.rand() < 0.005:
                     new_grid[x, y] = BLACK_HOLE
                     new_masses[x, y] = MASSES[BLACK_HOLE]
-                # Emisión de energía por estrellas
                 if np.count_nonzero(neighbors == STAR) >= 2 and np.random.rand() < 0.01:
                     new_grid[x, y] = ENERGY
                     new_masses[x, y] = MASSES[ENERGY]
-                # Colisión de agujeros negros
                 if np.count_nonzero(neighbors == BLACK_HOLE) >= 2 and np.random.rand() < 0.01:
                     new_grid[x, y] = BLACK_HOLE
                     new_masses[x, y] = MASSES[BLACK_HOLE]
 
             elif cell == STAR:
-                # Colapso a agujero negro si la masa es grande
                 if mass > 25 and np.random.rand() < 0.01:
                     new_grid[x, y] = BLACK_HOLE
                     new_masses[x, y] = MASSES[BLACK_HOLE]
-                # Las estrellas emiten energía
                 if np.random.rand() < 0.02:
                     for i in range(max(0, x-1), min(SIZE, x+2)):
                         for j in range(max(0, y-1), min(SIZE, y+2)):
@@ -147,45 +130,37 @@ def update_universe(grid, masses):
                                 new_masses[i, j] = MASSES[ENERGY]
 
             elif cell == PLANET:
-                # El planeta puede convertirse en estrella si la masa es grande
                 if mass > 10 and np.random.rand() < 0.01:
                     new_grid[x, y] = STAR
                     new_masses[x, y] = MASSES[STAR]
-                # El planeta puede fragmentarse en asteroides
                 if np.random.rand() < 0.001:
                     new_grid[x, y] = ASTEROID
                     new_masses[x, y] = MASSES[ASTEROID]
 
             elif cell == ASTEROID:
-                # El asteroide se dispersa
                 if np.random.rand() < 0.002:
                     new_grid[x, y] = SPACE
                     new_masses[x, y] = 0
 
             elif cell == ENERGY:
-                # La energía puede formar asteroides
                 if np.count_nonzero(neighbors == ENERGY) >= 3 and np.random.rand() < 0.01:
                     new_grid[x, y] = ASTEROID
                     new_masses[x, y] = MASSES[ASTEROID]
-                # La energía se disipa
                 if np.random.rand() < 0.01:
                     new_grid[x, y] = SPACE
                     new_masses[x, y] = 0
 
             elif cell == BLACK_HOLE:
-                # Pérdida de masa gradual
                 if np.random.rand() < PROB_MASS_LOSS:
                     mass_lost = mass * MASS_LOSS_RATE
                     new_masses[x, y] -= mass_lost
 
-                # El agujero negro absorbe objetos cercanos
                 for i in range(max(0, x-1), min(SIZE, x+2)):
                     for j in range(max(0, y-1), min(SIZE, y+2)):
                         if (i != x or j != y) and grid[i, j] not in [SPACE, BLACK_HOLE]:
                             if np.random.rand() < 0.5:
                                 new_grid[i, j] = SPACE
                                 new_masses[i, j] = 0
-                # El agujero negro puede emitir energía (radiación Hawking)
                 if np.random.rand() < 0.001:
                     for i in range(max(0, x-1), min(SIZE, x+2)):
                         for j in range(max(0, y-1), min(SIZE, y+2)):
@@ -193,9 +168,7 @@ def update_universe(grid, masses):
                                 new_grid[i, j] = ENERGY
                                 new_masses[i, j] = MASSES[ENERGY]
 
-                # Desintegración final
                 if new_masses[x, y] < 1:
-                    # Liberar energía residual
                     remaining_energy = new_masses[x, y]
                     energy_per_cell = remaining_energy / 8
                     for dx in [-1, 0, 1]:
@@ -215,84 +188,203 @@ def update_universe(grid, masses):
 
     return new_grid, new_masses
 
-# Renderiza el universo
 def render(grid):
-    # Convierte el grid en una imagen RGB
     img = np.zeros((SIZE, SIZE, 3))
     for t, color in COLORS.items():
         img[grid == t] = color
     return img
 
-# Cuenta los tipos de celda
-def count_cells(grid):
-    # Devuelve un diccionario con el conteo de cada tipo de celda
-    counts = Counter(grid.flatten())
-    return [counts.get(t, 0) for t in range(7)]
 
 
-# --- Interfaz gráfica y animación ---
+# ===== RED NEURONAL =====
 
-fig = plt.figure(figsize=(8, 8))
-plt.subplots_adjust(left=0.1, right=0.9, top=0.95, bottom=0.15)
+class DataCollector:
+    def __init__(self, max_samples=500):
+        self.images = []
+        self.stats = []
+        self.max_samples = max_samples
+    
+    def collect_sample(self, grid, masses):
+        if len(self.images) >= self.max_samples:
+            return False
+        self.images.append(render(grid))
+        self.stats.append(self._extract_statistics(grid, masses))
+        return True
+    
+    def _extract_statistics(self, grid, masses):
+        counts = [np.sum(grid == i) for i in range(7)]
+        regions = 5
+        region_size = max(1, SIZE // regions)
+        region_stats = []
+        for i in range(regions):
+            for j in range(regions):
+                region = grid[i*region_size:min(SIZE,(i+1)*region_size), 
+                             j*region_size:min(SIZE,(j+1)*region_size)]
+                region_counts = [np.sum(region == k) for k in range(7)]
+                region_stats.extend(region_counts)
+        return np.concatenate([counts, region_stats])
 
-# Crear subplots
-ax_title = plt.subplot2grid((12, 1), (0, 0), rowspan=1)
-ax_grid = plt.subplot2grid((12, 1), (1, 0), rowspan=8)
-ax_stats = plt.subplot2grid((12, 1), (9, 0), rowspan=3)
+def build_autoencoder(input_shape=(20, 20, 3), latent_dim=64):
+    input_img = layers.Input(shape=input_shape)
+    
+    # Encoder
+    x = layers.Conv2D(16, (3,3), activation='relu', padding='same')(input_img)
+    x = layers.MaxPooling2D((2,2), padding='same')(x)
+    x = layers.Conv2D(8, (3,3), activation='relu', padding='same')(x)
+    
+    shape_before_flatten = K.int_shape(x)
+    x = layers.Flatten()(x)
+    encoded = layers.Dense(latent_dim, activation='relu')(x)
+    
+    # Decoder
+    x = layers.Dense(np.prod(shape_before_flatten[1:]), activation='relu')(encoded)
+    x = layers.Reshape(shape_before_flatten[1:])(x)
+    x = layers.Conv2D(16, (3,3), activation='relu', padding='same')(x)
+    x = layers.UpSampling2D((2,2))(x)
+    decoded = layers.Conv2D(3, (3,3), activation='sigmoid', padding='same')(x)
+    
+    autoencoder = Model(input_img, decoded)
+    encoder = Model(input_img, encoded)
+    return autoencoder, encoder
 
-ax_title.axis('off')
-ax_grid.axis('off')
-ax_stats.axis('off')
+class PatternDetector:
+    def __init__(self, latent_dim=64, n_clusters=8):
+        self.autoencoder, self.encoder = build_autoencoder(
+            input_shape=(SIZE, SIZE, 3), 
+            latent_dim=latent_dim
+        )
+        self.autoencoder.compile(optimizer='adam', loss='mse')
+        self.kmeans = KMeans(n_clusters=n_clusters)
+        self.pattern_counts = {
+            'Sistemas Estelares': 0,
+            'Regiones Energía': 0,
+            'Clusters Agujeros': 0,
+            'Vacíos Cósmicos': 0
+        }
+        
+    def train(self, images, stats):
+        images_array = np.array(images)
+        print(f"Entrenando con {len(images_array)} muestras")
+        self.autoencoder.fit(images_array, images_array, epochs=10, batch_size=8, validation_split=0.2, verbose=1)
+        latent_vectors = self.encoder.predict(images_array, verbose=0)
+        stats_array = np.array(stats)
+        combined_features = np.concatenate([latent_vectors, stats_array], axis=1)
+        self.kmeans.fit(combined_features)
+        print("Entrenamiento completo")
+        
+    def detect_patterns(self, grid):
+        self._update_pattern_counts(grid)
+        return self.pattern_counts.copy()
+    
+    def _extract_statistics(self, grid, masses):
+        return DataCollector()._extract_statistics(grid, masses)
+    
+    def _update_pattern_counts(self, grid):
+        # Sistemas estelares (estrella con al menos 1 planeta/asteroide en radio 2x2)
+        self.pattern_counts['Sistemas Estelares'] = 0
+        stars = np.argwhere(grid == STAR)
+        for x, y in stars:
+            area = grid[max(0,x-1):min(SIZE,x+2), max(0,y-1):min(SIZE,y+2)]
+            if np.sum(np.isin(area, [PLANET, ASTEROID])) >= 1:
+                self.pattern_counts['Sistemas Estelares'] += 1
+                
+        # Regiones de alta energía (mínimo 2 celdas contiguas)
+        energy_mask = grid == ENERGY
+        labeled, num_features = label(energy_mask)
+        self.pattern_counts['Regiones Energía'] = 0
+        for i in range(1, num_features+1):
+            if np.sum(labeled == i) >= 2: 
+                self.pattern_counts['Regiones Energía'] += 1
+                
+        # Clusters de agujeros negros (2+ en el universo)
+        black_holes = np.argwhere(grid == BLACK_HOLE)
+        self.pattern_counts['Clusters Agujeros'] = len(black_holes) // 2
+            
+        # Vacíos cósmicos (área 3x3 con 80% espacio vacío)
+        self.pattern_counts['Vacíos Cósmicos'] = 0
+        for i in range(0, SIZE-2, 2):
+            for j in range(0, SIZE-2, 2):
+                window = grid[i:i+3, j:j+3]
+                if np.sum(window == SPACE) >= 7:  # 9 celdas * 0.8 = 7.2
+                    self.pattern_counts['Vacíos Cósmicos'] += 1     
 
-# Inicialización del universo
+# Configuración de la interfaz
+fig = plt.figure(figsize=(7, 9))
+plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.25)
+ax = plt.gca()
+ax.axis('off')
+
+# Variables globales
 grid = create_universe()
 masses = initialize_masses(grid)
-frame = [0] 
+frame = [0]
+paused = [True]
+detector = PatternDetector()
+data_collector = DataCollector(max_samples=50)
+training_done = [False]
 
-# Elementos gráficos
-img = ax_grid.imshow(render(grid), interpolation='nearest')
-title_text = ax_title.text(0.5, 0.5, f'Generación: {frame[0]}', 
-                          fontsize=16, ha='center', va='center', 
-                          transform=ax_title.transAxes)
+# Crear tabla de estadísticas
+stats_ax = plt.axes([0.1, 0.05, 0.8, 0.15])
+stats_ax.axis('off')
+table_data = [
+    ["Generación", "0"],
+    ["Sistemas Estelares", "0"],
+    ["Regiones Energía", "0"],
+    ["Clusters Agujeros", "0"],
+    ["Vacíos Cósmicos", "0"]
+]
+table = stats_ax.table(
+    cellText=table_data,
+    colWidths=[0.3, 0.3],
+    loc='center',
+    cellLoc='center',
+    edges='closed'
+)
+table.auto_set_font_size(False)
+table.set_fontsize(12)
+table.scale(1, 1.5)
 
-cell_types = ["Espacio (negro)", "Estrella (amarillo)", "Planeta (verde)", "Asteroide (azul)", 
-             "Energía (rojo)", "Agujero Negro (azul oscuro)", "Antimateria"]
-counts = count_cells(grid)
-stats_text = "\n".join([f"{name}: {count}" for name, count in zip(cell_types, counts)])
+# Elementos de la interfaz
+img = ax.imshow(render(grid), interpolation='nearest')
 
-count_text = ax_stats.text(0.05, 0.7, stats_text, 
-                          fontsize=12, va='top', 
-                          transform=ax_stats.transAxes)
-
-btn_ax = plt.axes([0.8, 0.05, 0.15, 0.04])
+# Botón de play/pause
+btn_ax = plt.axes([0.45, 0.22, 0.1, 0.04])
 btn_play = Button(btn_ax, 'Iniciar', color='lightgoldenrodyellow')
 
-paused = [True]
-history = []
 
-def update_display():
+def update_display(counts):
     img.set_data(render(grid))
-    counts = count_cells(grid)
-    count_text.set_text("\n".join([f"{name}: {count}" for name, count in zip(cell_types, counts)]))
-    title_text.set_text(f'Generación: {frame[0]}')
-    fig.canvas.draw_idle()
+    
+    # Actualizar datos de la tabla
+    table.get_celld()[(0,1)].get_text().set_text(f"{frame[0]}")
+    table.get_celld()[(1,1)].get_text().set_text(f"{counts['Sistemas Estelares']}")
+    table.get_celld()[(2,1)].get_text().set_text(f"{counts['Regiones Energía']}")
+    table.get_celld()[(3,1)].get_text().set_text(f"{counts['Clusters Agujeros']}")
+    table.get_celld()[(4,1)].get_text().set_text(f"{counts['Vacíos Cósmicos']}")
+    
+    fig.canvas.draw()
 
 def animate(i):
+    global grid, masses, detector, training_done
     if not paused[0]:
-        new_grid, new_masses = update_universe(grid, masses)
-        grid[:] = new_grid
-        masses[:] = new_masses
+        grid, masses = update_universe(grid, masses)
         frame[0] += 1
-        update_display()
-    return img, count_text
+        
+        if not training_done[0]:
+            if data_collector.collect_sample(grid, masses):
+                if len(data_collector.images) >= 50:  # Reducido a 50 muestras
+                    detector.train(data_collector.images, data_collector.stats)
+                    training_done[0] = True
+        
+        counts = detector.detect_patterns(grid)
+        update_display(counts)
+    
+    return img,
 
 def toggle_play(event):
     paused[0] = not paused[0]
-    btn_play.label.set_text('Reanudar' if paused[0] else 'Pausar')
+    btn_play.label.set_text('Pausar' if not paused[0] else 'Reanudar')
 
 btn_play.on_clicked(toggle_play)
-
-# Inicializar animación
 ani = animation.FuncAnimation(fig, animate, interval=100, blit=False)
-
 plt.show()
