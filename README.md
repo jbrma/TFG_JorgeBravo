@@ -1,7 +1,7 @@
 <h2> Optimización Heurística en el Juego de la Vida de Conway: Algoritmos Genéticos y Aprendizaje Automático para la Simulación de Sistemas Astrofísicos </h2>
 
 <p align="center">
-  <img src="./simulaciones/gif_10Kgen.gif" width="30%"/>
+  <img src="./simulaciones/gif_10Kgen.gif" width="60%"/>
 </p>
 
 ### Descripción
