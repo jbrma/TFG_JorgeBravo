@@ -1,5 +1,9 @@
 <h2> Optimización Heurística en el Juego de la Vida de Conway: Algoritmos Genéticos y Aprendizaje Automático para la Simulación de Sistemas Astrofísicos </h2>
 
+<p align="center">
+  <img src="./simulaciones/gif_10Kgen.gif" width="30%"/>
+</p>
+
 ### Descripción
 
 Este Trabajo de Fin de Grado presenta el diseño y desarrollo de un universo simulado mediante un autómata celular modificado, inspirado en el clásico Juego de la Vida de Conway. A partir de una cuadrícula de células que representan distintos tipos de materia —como estrellas, planetas y agujeros negros— se han implementado reglas astrofísicas que permiten observar la evolución dinámica del sistema a lo largo de miles de generaciones.
