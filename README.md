@@ -1,62 +1,57 @@
-<h2> Optimización Heurística en el Juego de la Vida de Conway: Algoritmos Genéticos y Aprendizaje Automático para la Simulación de Sistemas Astrofísicos </h2>
+<h2> Heuristic Optimization in Conway's Game of Life: Genetic Algorithms and Machine Learning for the Simulation of Astrophysical Systems </h2>
 
 <p align="center">
   <img src="./simulaciones/gif_10Kgen.gif" width="60%"/>
 </p>
 
-### Descripción
+### Description
 
-Este Trabajo de Fin de Grado presenta el diseño y desarrollo de un universo simulado mediante un autómata celular modificado, inspirado en el clásico Juego de la Vida de Conway. A partir de una cuadrícula de células que representan distintos tipos de materia —como estrellas, planetas y agujeros negros— se han implementado reglas astrofísicas que permiten observar la evolución dinámica del sistema a lo largo de miles de generaciones.
+This Final Degree Project presents the design and development of a simulated universe using a modified cellular automaton, inspired by Conway's classic Game of Life. Based on a grid of cells representing different types of matter—such as stars, planets, and black holes—astrophysical rules have been implemented that allow us to observe the dynamic evolution of the system over thousands of generations.
 
-### Objetivos
+### Objectives
 
-- Objetivo Principal: Simular estructuras análogas a las observadas en sistemas astrofísicos mediante algoritmos genéticos para optimizar configuraciones iniciales y reglas de transición en variantes del Juego de la Vida
+- Main Objective: Simulate structures analogous to those observed in astrophysical systems using genetic algorithms to optimize initial configurations and transition rules in variants of the Game of Life
 
-- Análisis de Patrones: Analizar los patrones obtenidos a través de técnicas de aprendizaje automático para clasificar comportamiento y estructura
+- Pattern Analysis: Analyze the patterns obtained through machine learning techniques to classify behavior and structure
 
-- Paralelismos Astrofísicos: Identificar similitudes entre los patrones generados y fenómenos astrofísicos y cosmológicos reales
+- Astrophysical Parallels: Identify similarities between the patterns generated and real astrophysical and cosmological phenomena.
 
-### Tecnologías Utilizadas
+### Technologies Used
 - Python 3.11.4
-- NumPy 1.24.3: Estructuras de datos matriciales
-- Pygame: Visualización interactiva del autómata celular
-- Matplotlib 3.10.3: Análisis gráfico de resultados
-- TensorFlow/Keras: Redes neuronales y aprendizaje automático
-- Tkinter: Interfaz gráfica avanzada
+- NumPy 1.24.3: Matrix data structures
+- Pygame: Interactive visualization of the cellular automaton
+- Matplotlib 3.10.3: Graphical analysis of results
+- TensorFlow/Keras: Neural networks and machine learning
+- Tkinter: Advanced graphical interface
 
-### Metodología Científica
-#### Algoritmos Genéticos
+### Scientific Methodology
+#### Genetic Algorithms
 
-- Población: 10-30 individuos según el experimento
-- Selección: Elitista, conservando el 50% superior
-- Cruzamiento: Punto único respetando coherencia espacial
-- Mutación: Tasa del 1% para mantener diversidad
+- Population: 10-30 individuals depending on the experiment
+- Selection: Elitist, retaining the top 50%
+- Crossover: Single point respecting spatial consistency
+- Mutation: 1% rate to maintain diversity
 
-#### Aprendizaje Automático
-- Extracción de características: 35 parámetros cuantificando distribuciones globales y regionales
-- Red neuronal: Arquitectura con capas densas (128→64→8 neuronas)
-- Autoencoder: Compresión de imágenes 200×200×3 a vectores de 64 dimensiones
-- Clustering: K-Means para identificar 8 tipos de patrones estructurales
+#### Machine Learning
+- Feature extraction: 35 parameters quantifying global and regional distributions
+- Neural network: Architecture with dense layers (128→64→8 neurons)
+- Autoencoder: Compression of 200×200×3 images to 64-dimensional vectors
+- Clustering: K-Means to identify 8 types of structural patterns
 
-### Analogías Astrofísicas
-El sistema demuestra similitudes estructurales con fenómenos cósmicos reales:
-- Red cósmica: Patrones filamentosos similares a la distribución de materia a gran escala
-- Formación jerárquica: Evolución de energía → asteroides → planetas → estrellas → agujeros negros
-- Autoorganización: Emergencia espontánea de estructuras complejas sin control externo
-
+### Astrophysical Analogies
+The system demonstrates structural similarities with real cosmic phenomena:
+- Cosmic web: Filamentary patterns similar to the large-scale distribution of matter
+- Hierarchical formation: Evolution of energy → asteroids → planets → stars → black holes
+- Self-organization: Spontaneous emergence of complex structures without external control
 
 Jorge Bravo Mateos
 
-Grado en Ingeniería de Computadores
+Bachelor's Degree in Computer Engineering
 
-Universidad Complutense de Madrid
+Complutense University of Madrid
 
-Curso académico 2024-25
+Academic year 2024-25
 
 Director: Rafael del Vado Vírseda
 
-La memoria completa del trabajo está disponible en el repositorio: [TFG_JorgeBravoMateos](https://github.com/jbrma/TFG_JorgeBravo/blob/main/memoria/TFG_JorgeBravoMateos.pdf)
-
-Este proyecto se desarrolla con fines académicos en el marco del Trabajo de Fin de Grado de la Universidad Complutense de Madrid.
-
-
+The complete thesis is available in the repository: [TFG_JorgeBravoMateos](https://github.com/jbrma/TFG_JorgeBravo/blob/main/memoria/TFG_JorgeBravoMateos.pdf)
